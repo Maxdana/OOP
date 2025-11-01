@@ -1,0 +1,105 @@
+#include <windows.h>
+#include <gdiplus.h>
+#include <cmath>
+
+using namespace Gdiplus;
+
+#pragma comment (lib, "Gdiplus.lib")
+
+LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
+    GdiplusStartupInput gdiplusStartupInput;
+    ULONG_PTR gdiplusToken;
+    GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+
+    WNDCLASS wc = { 0 };
+    wc.lpfnWndProc = WndProc;
+    wc.hInstance = hInstance;
+    wc.lpszClassName = TEXT("PieChartWindow");
+    RegisterClass(&wc);
+
+    HWND hwnd = CreateWindow(wc.lpszClassName, TEXT("Діаграма"),
+        WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 600, 400,
+        NULL, NULL, hInstance, NULL);
+
+    ShowWindow(hwnd, nCmdShow);
+
+    MSG msg;
+    while (GetMessage(&msg, NULL, 0, 0)) {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
+
+    GdiplusShutdown(gdiplusToken);
+    return 0;
+}
+
+
+void DrawPieChart(Graphics& g, int width, int height) {
+    SolidBrush background(Color::White);
+    g.FillRectangle(&background, 0, 0, width, height);
+    g.SetSmoothingMode(SmoothingModeAntiAlias);
+  
+    Rect rect(width / 4, height / 4, width / 2, height / 2);
+
+    float angles[] = { 90.0f, 234.0f, 36.0f };
+    Color colors[] = { Color::Red, Color::Green, Color::SkyBlue };
+  
+    const wchar_t* labels[] = { L"25%", L"65%", L"10%" };
+ 
+    FontFamily fontFamily(L"Arial");
+    Font font(&fontFamily, 14, FontStyleBold, UnitPixel);
+    SolidBrush textBrush(Color::Black);
+    StringFormat format;
+    format.SetAlignment(StringAlignmentCenter);    
+    format.SetLineAlignment(StringAlignmentCenter);
+    
+    const float PI = 3.14159265358979323846f;
+    float startAngle = 0;
+
+    for (int i = 0; i < 3; i++) {
+     
+        SolidBrush brush(colors[i]);
+        g.FillPie(&brush, rect, startAngle, angles[i]);
+             
+        float midAngle = startAngle + angles[i] / 2.0f; 
+        float rad = midAngle * PI / 180.0f;             
+        float cx = rect.X + rect.Width / 2.0f;
+        float cy = rect.Y + rect.Height / 2.0f;
+        float rx = rect.Width / 3.0f;
+        float ry = rect.Height / 3.0f;
+        float x = cx + rx * cos(rad);
+        float y = cy + ry * sin(rad); 
+ 
+        g.DrawString(labels[i], -1, &font, PointF(x, y), &format, &textBrush);
+
+          startAngle += angles[i];
+    }
+}
+
+LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    switch (msg) {
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hwnd, &ps);
+        Graphics g(hdc);
+        RECT rect;
+
+        GetClientRect(hwnd, &rect);
+        DrawPieChart(g, rect.right - rect.left, rect.bottom - rect.top);
+        EndPaint(hwnd, &ps);
+    }
+    break;
+    case WM_DESTROY:
+        PostQuitMessage(0);
+        break;
+    default:
+        return DefWindowProc(hwnd, msg, wParam, lParam);
+    case WM_SIZE:
+        InvalidateRect(hwnd, NULL, TRUE); 
+        break;
+            }
+    return 0;
+}
